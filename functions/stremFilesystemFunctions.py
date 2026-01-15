@@ -4,7 +4,7 @@ import logging
 from functions.appFunctions import getAllUserDownloads
 import shutil
 
-def generateFolderPath(data: dict):
+def generateFolderPath(data: dict) -> str | None:
     """
     Takes in a user download and returns the folder path for the download.
 
@@ -12,13 +12,15 @@ def generateFolderPath(data: dict):
     Movie (Year)/Title (Year).ext
 
     """
-    root_folder = data.get("metadata_rootfoldername", None)
-    metadata_foldername = data.get("metadata_foldername", None)
+    root_folder: str | None = data.get("metadata_rootfoldername", None)
+    metadata_foldername: str | None = data.get("metadata_foldername", None)
 
-    if not root_folder and not metadata_foldername:
+    if not root_folder:
         return None
 
     if data.get("metadata_mediatype") == "series":
+        if not metadata_foldername:
+            return None
         folder_path = os.path.join(
             root_folder,
             metadata_foldername,
@@ -29,6 +31,8 @@ def generateFolderPath(data: dict):
         )
 
     elif data.get("metadata_mediatype") == "anime":
+        if not metadata_foldername:
+            return None
         folder_path = os.path.join(
             root_folder,
             metadata_foldername,
@@ -57,11 +61,11 @@ def generateStremFile(file_path: str, url: str, type: str, file_name: str):
             file.write(url)
         logging.debug(f"Created strm file: {full_path}/{file_name}.strm")
         return True
-    except OSError as e:
-        logging.error(f"Error creating strm file (likely bad or missing permissions): {e}")
-        return False
     except FileNotFoundError as e:
         logging.error(f"Error creating strm file (likely bad naming scheme of file): {e}")
+        return False
+    except OSError as e:
+        logging.error(f"Error creating strm file (likely bad or missing permissions): {e}")
         return False
     except Exception as e:
         logging.error(f"Error creating strm file: {e}")
