@@ -5,6 +5,7 @@ from enum import Enum
 load_dotenv()
 
 SCAN_METADATA = os.getenv("ENABLE_METADATA", "false").lower() == "true"
+RAW_MODE = os.getenv("RAW_MODE", "false").lower() == "true"
 
 class MountRefreshTimes(Enum):
     # times are shown in hours
@@ -23,7 +24,10 @@ assert MOUNT_REFRESH_TIME in [e.name for e in MountRefreshTimes], f"Invalid moun
 if MOUNT_REFRESH_TIME == "instant":
     print("!!! Instant mount refresh time may cause rate limiting issues with the API. Use with caution. !!!")
 
-if SCAN_METADATA:
+if SCAN_METADATA and RAW_MODE:
+    SCAN_METADATA = False
+    print("!!! RAW_MODE IS NOT COMPATIBLE WITH METADATA SCANNING. Disabling metadata scanning. !!!")
+else:
     print("!!! Metadata scanning is enabled. This may slow down the processing of files. !!!")
 
 if MOUNT_REFRESH_TIME == "instant" and SCAN_METADATA:
