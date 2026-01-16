@@ -88,23 +88,23 @@ class VirtualFileSystem:
             
         return structure
 
-def _build_file_map(self):
-    file_map = {}
-    for f in self.files:
-        if RAW_MODE:
-            original_path = f.get("path")
-            if original_path:
-                path = f'/{original_path}'
-                file_map[path] = f
-        else:
-            if f.get('metadata_mediatype') == 'movie':
-                path = f'/movies/{f.get("metadata_rootfoldername")}/{f.get("metadata_filename")}'
-                file_map[path] = f
-            else:  # series
-                path = f'/series/{f.get("metadata_rootfoldername")}/{f.get("metadata_foldername")}/{f.get("metadata_filename")}'
-                file_map[path] = f
+    def _build_file_map(self):
+        file_map = {}
+        for f in self.files:
+            if RAW_MODE:
+                original_path = f.get("path")
+                if original_path:
+                    path = f'/{original_path}'
+                    file_map[path] = f
+            else:
+                if f.get('metadata_mediatype') == 'movie':
+                    path = f'/movies/{f.get("metadata_rootfoldername")}/{f.get("metadata_filename")}'
+                    file_map[path] = f
+                else:  # series
+                    path = f'/series/{f.get("metadata_rootfoldername")}/{f.get("metadata_foldername")}/{f.get("metadata_filename")}'
+                    file_map[path] = f
 
-    return file_map
+        return file_map
 
 
     def is_dir(self, path):
