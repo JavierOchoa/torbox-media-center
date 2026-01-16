@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.0.0](https://github.com/TorBox-App/torbox-media-center/compare/v1.4.0...v2.0.0) (2026-01-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* uses new http client wrapper with automatic retries
+
+### Features
+
+* add cleanup logic for stale .strm files and empty folders ([68d4448](https://github.com/TorBox-App/torbox-media-center/commit/68d4448d60db818f9b0a4baeb5bfae5cf29b319a))
+* Add RAW_MODE feature: preserve original file tree when enabled ([0dcd7c9](https://github.com/TorBox-App/torbox-media-center/commit/0dcd7c9623263f4091c9ff1e032f9125e78e84f7))
+* adds caching to http client ([896fd20](https://github.com/TorBox-App/torbox-media-center/commit/896fd209509ccff36bc0228db343778f8624efc7))
+* adds update checking using git, http header uses latest version ([58673e0](https://github.com/TorBox-App/torbox-media-center/commit/58673e006a4e66d82f92a437de2a0a171bfd034a))
+* uses new http client wrapper with automatic retries ([31d7b57](https://github.com/TorBox-App/torbox-media-center/commit/31d7b57d50ea071111f5199daf0bdab80f2bd808))
+
+
+### Bug Fixes
+
+* better search and proper folder structure on no metadata ([f18d272](https://github.com/TorBox-App/torbox-media-center/commit/f18d272824076a733afaabb9ef76791369aa3ddf))
+* changes raw_mode env to true/false ([172a11b](https://github.com/TorBox-App/torbox-media-center/commit/172a11b153054d0b9582522c4f9e99c42ab93020))
+* handles when file is not found ([9de0a53](https://github.com/TorBox-App/torbox-media-center/commit/9de0a53f4d9df4c65a7602e829a444334ba91f85))
+* properly updates wording and value of mount ([243bf87](https://github.com/TorBox-App/torbox-media-center/commit/243bf875a8eedd4853dbe7c95f4aef5805d54546))
+* stores larger blocks to prevent 429s ([94719c7](https://github.com/TorBox-App/torbox-media-center/commit/94719c71358b8d6a6748c4078ce34a747e8d74a8))
+* types and better errors ([e6e7f45](https://github.com/TorBox-App/torbox-media-center/commit/e6e7f45af72cb43bb3765811bb822e1b988af01c))
+
 ## [1.4.0](https://github.com/TorBox-App/torbox-media-center/compare/v1.3.0...v1.4.0) (2025-10-16)
 
 
