@@ -1,5 +1,6 @@
 import httpx
 from library.torbox import TORBOX_API_KEY
+from library.app import getCurrentVersion
 import time
 import logging
 import hashlib
@@ -7,7 +8,7 @@ import json
 
 TORBOX_API_URL = "https://api.torbox.app/v1/api"
 TORBOX_SEARCH_API_URL = "https://search-api.torbox.app"
-USER_AGENT = "TorBox-Media-Center/1.4 TorBox/1.0"
+USER_AGENT = f"TorBox-Media-Center/{getCurrentVersion()} TorBox/1.0"
 CACHE_TTL = 300 # cache time-to-live in seconds
 _cache: dict[str, tuple[float, httpx.Response]] = {}
 

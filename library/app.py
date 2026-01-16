@@ -35,3 +35,6 @@ if MOUNT_REFRESH_TIME == "instant" and SCAN_METADATA:
     MOUNT_REFRESH_TIME = MountRefreshTimes.fast.value
 else:
     MOUNT_REFRESH_TIME = MountRefreshTimes[MOUNT_REFRESH_TIME].value
+
+def getCurrentVersion():
+    return "v2.0.0"

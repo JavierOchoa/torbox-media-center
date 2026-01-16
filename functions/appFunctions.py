@@ -7,6 +7,8 @@ from functions.databaseFunctions import getAllData, clearDatabase
 import logging
 import os
 import shutil
+from library.app import getCurrentVersion
+import git
 
 def initializeFolders():
     folders = [MOUNT_PATH]
@@ -67,6 +69,14 @@ def bootUp():
     logging.info("Mount path: %s", MOUNT_PATH)
     logging.info("TorBox API Key: %s", TORBOX_API_KEY)
     logging.info("Mount refresh time: %s %s", MOUNT_REFRESH_TIME, "hours")
+
+    # check version
+    latest_version = getLatestVersion()
+    current_version = getCurrentVersion()
+
+    if latest_version != current_version:
+        logging.warning(f"!!! A new version of TorBox Media Center is available: {latest_version}. You are running version: {current_version}. Please consider updating to the latest version. !!!")
+
     initializeFolders()
 
     return True
@@ -79,3 +89,18 @@ def getMountPath():
 
 def getMountRefreshTime():
     return MOUNT_REFRESH_TIME
+
+def getLatestVersion():
+    try:
+        url = "https://github.com/torbox-app/torbox-media-center.git"
+        g = git.cmd.Git()
+        tags_output = g.ls_remote("--tags", url)
+        tags = [line.split("refs/tags/")[1] for line in tags_output.splitlines() if "refs/tags/" in line]
+        tags = [tag for tag in tags if not tag.endswith("^{}")]
+        tags.sort(key=lambda s: list(map(int, s.lstrip('v').split('.'))))
+        latest_tag = tags[-1] if tags else None
+        return latest_tag
+    except Exception as e:
+        logging.error(f"Error fetching latest version: {e}")
+        return None
+
