@@ -179,3 +179,4 @@ movies
 series
 test-*
 *.json
+.torbox-media-center.pid

@@ -7,8 +7,11 @@ from functions.databaseFunctions import getAllData, clearDatabase
 import logging
 import os
 import shutil
+import threading
 from library.app import getCurrentVersion
 import git
+
+refresh_lock = threading.Lock()
 
 def initializeFolders():
     folders = [MOUNT_PATH]
@@ -51,6 +54,34 @@ def getAllUserDownloadsFresh():
         logging.debug(f"Fetched {len(downloads)} {download_type.value} downloads.")
     return all_downloads
 
+def runRefreshCycle(mount_method: str | None = None, include_mount_sync: bool = False, trigger: str = "scheduled"):
+    if mount_method is None:
+        mount_method = MOUNT_METHOD
+
+    if not refresh_lock.acquire(blocking=False):
+        logging.info(f"Skipping {trigger} refresh because another refresh is already running.")
+        return False, "Refresh is already running."
+
+    try:
+        logging.info(f"Starting {trigger} refresh cycle...")
+        all_downloads = getAllUserDownloadsFresh() or []
+
+        if include_mount_sync:
+            if mount_method == "strm":
+                from functions.stremFilesystemFunctions import runStrm
+                runStrm()
+            elif mount_method == "fuse":
+                from functions.fuseFilesystemFunctions import requestFuseRefresh
+                requestFuseRefresh()
+
+        logging.info(f"Completed {trigger} refresh cycle.")
+        return True, f"Completed refresh cycle for {len(all_downloads)} downloads."
+    except Exception as e:
+        logging.error(f"Error during {trigger} refresh cycle: {e}")
+        return False, f"Error during refresh cycle: {e}"
+    finally:
+        refresh_lock.release()
+
 def getAllUserDownloads():
     all_downloads = []
     for download_type in DownloadType:
@@ -58,6 +89,8 @@ def getAllUserDownloads():
         downloads, success, detail = getAllData(download_type.value)
         if not success:
             logging.error(f"Error fetching {download_type.value}: {detail}")
+            continue
+        if not downloads:
             continue
         all_downloads.extend(downloads)
         logging.debug(f"Fetched {len(downloads)} {download_type.value} downloads.")
@@ -103,4 +136,3 @@ def getLatestVersion():
     except Exception as e:
         logging.error(f"Error fetching latest version: {e}")
         return None
-

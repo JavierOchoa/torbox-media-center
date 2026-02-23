@@ -24,6 +24,7 @@ if not hasattr(fuse, '__version__'):
 fuse.fuse_python_api = (0, 2)
 
 LINK_AGE = 3 * 60 * 60 # 3 hours
+FUSE_SERVER = None
 
 class VirtualFileSystem:
     def __init__(self, files_list):
@@ -136,26 +137,35 @@ class TorBoxMediaCenterFuse(Fuse):
     def __init__(self, *args, **kwargs):
         super(TorBoxMediaCenterFuse, self).__init__(*args, **kwargs)
 
-        threading.Thread(target=self.getFiles, daemon=True).start()
-
         self.files = []
         self.vfs = VirtualFileSystem(self.files)
         self.file_handles = {}
         self.next_handle = 1
         self.cached_links = {}
+        self.refresh_event = threading.Event()
 
         self.cache = {}
         self.block_size = 1024 * 1024 * 64  # 64MB Blocks
         self.max_blocks = 64 # Max 64 blocks in cache (4GB)
 
+        threading.Thread(target=self.getFiles, daemon=True).start()
+
+    def refreshFiles(self):
+        files = getAllUserDownloads()
+        if files is None:
+            return
+        self.files = files
+        self.vfs = VirtualFileSystem(self.files)
+        logging.debug(f"Updated {len(self.files)} files in VFS")
+
+    def requestRefresh(self):
+        self.refresh_event.set()
+
     def getFiles(self):
         while True:
-            files = getAllUserDownloads()
-            if files:
-                self.files = files
-                self.vfs = VirtualFileSystem(self.files)
-                logging.debug(f"Updated {len(self.files)} files in VFS")
-            time.sleep(300)
+            self.refreshFiles()
+            self.refresh_event.wait(timeout=300)
+            self.refresh_event.clear()
         
     def getattr(self, path):
         st = FuseStat()
@@ -261,11 +271,13 @@ class TorBoxMediaCenterFuse(Fuse):
         return 0
     
 def runFuse():
+    global FUSE_SERVER
     server = TorBoxMediaCenterFuse(
         version="%prog " + fuse.__version__,
         usage="%prog [options] mountpoint",
         dash_s_do="setsingle",
     )
+    FUSE_SERVER = server
 
     server.parser.add_option(
         mountopt="root",
@@ -289,7 +301,20 @@ def runFuse():
     except OSError as e:
         logging.error(f"Error changing directory: {e}")
         sys.exit(1)
-    server.main()
+
+    try:
+        server.main()
+    finally:
+        FUSE_SERVER = None
+
+def requestFuseRefresh():
+    if FUSE_SERVER is None:
+        logging.debug("FUSE server is not running. Skipping immediate VFS refresh request.")
+        return False
+
+    FUSE_SERVER.requestRefresh()
+    logging.info("Requested immediate FUSE VFS refresh.")
+    return True
 
 def unmountFuse():
     try:

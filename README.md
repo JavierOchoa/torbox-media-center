@@ -90,7 +90,7 @@ To run this project you will need to add the following environment variables to 
 
 `MOUNT_PATH` The mounting path where all of your files will be accessible. If inside of Docker, this path needs to be accessible to other applications. If running locally without Docker, this path must be owned.
 
-`MOUNT_REFRESH_TIME` How fast you would like your mount to look for new files. Must be either `slowest` for every 24 hours, `very_slow` for every 12 hours, `slow` for every 6 hours, `normal` for every 3 hours, `fast` for every 2 hours or `ultra_fast` for every 1 hour. The default is `normal` and is optional.
+`MOUNT_REFRESH_TIME` How fast you would like your mount to look for new files. Must be either `slowest` for every 24 hours, `very_slow` for every 12 hours, `slow` for every 6 hours, `normal` for every 3 hours, `fast` for every 2 hours or `ultra_fast` for every 1 hour. The default is `normal` and is optional. You can also trigger an immediate refresh at any time with `./refresh-content.sh` while the app is running.
 
 `ENABLE_METADATA` This option allows you to enable scanning the metadata of your files. If this is enabled, TorBox will __attempt__ to find the correct metadata for your files in your TorBox account. This isn't perfect, so use with caution. If this option is `false` it skips scanning and places all of your video files in the `movies` folder. If it is enabled, TorBox will scan, and attempt to place your files into either the `movies` or `series` folders. Please also keep in mind that you will be subject to rate limiting of our search endpoint when using the metadata option. Seeing 429 errors will be common. Most of the time it is best to keep this option disabled unless you video player absolutely requires it. Also keep in mind, this unlocks the `instant` option, which can allow you to refresh every 6 minutes.
 
@@ -191,6 +191,20 @@ python3 main.py
 ```
 
 7. Wait for the files to be mounted to your local machine.
+
+## ⚡ Refresh on demand
+
+You can trigger an immediate refresh whenever needed (without waiting for `MOUNT_REFRESH_TIME`) by running this script from the project root while the media center is running:
+
+```bash
+./refresh-content.sh
+```
+
+This sends a manual refresh signal to the running process.
+
+- Local process mode: uses `.torbox-media-center.pid` automatically.
+- Docker mode: if no local process is found, it will try container `torbox-media-center`.
+- Custom Docker container name: set `TORBOX_CONTAINER_NAME` before running the script.
 
 ## 🩺 Troubleshooting ##
 
