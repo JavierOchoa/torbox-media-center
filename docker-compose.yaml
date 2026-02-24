@@ -13,6 +13,7 @@ services:
             - MOUNT_PATH=/torbox
             - RAW_MODE=true
             - ENABLE_METADATA=false
+            - ENABLE_AUDIO=false
             - MOUNT_REFRESH_TIME=slow
         image: anonymoussystems/torbox-media-center:main
      

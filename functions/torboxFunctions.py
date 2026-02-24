@@ -3,7 +3,7 @@ import httpx
 from enum import Enum
 import PTN
 from library.torbox import TORBOX_API_KEY
-from library.app import SCAN_METADATA
+from library.app import SCAN_METADATA, ENABLE_AUDIO
 from functions.mediaFunctions import constructSeriesTitle, cleanTitle, cleanYear
 from functions.databaseFunctions import insertData
 import os
@@ -22,15 +22,62 @@ class IDType(Enum):
     usenet = "usenet_id"
     webdl = "web_id"
 
-ACCEPTABLE_MIME_TYPES = [
+ACCEPTABLE_VIDEO_MIME_TYPES = [
     "video/x-matroska",
     "video/mp4",
 ]
 
+ACCEPTABLE_AUDIO_MIME_TYPES = [
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/x-m4a",
+    "audio/flac",
+    "audio/x-flac",
+    "audio/ogg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/aac",
+]
+
+def getAcceptedMediaType(mimetype: str | None):
+    if not mimetype:
+        return None
+
+    if mimetype.startswith("video/") and mimetype in ACCEPTABLE_VIDEO_MIME_TYPES:
+        return "video"
+
+    if ENABLE_AUDIO and mimetype.startswith("audio/") and mimetype in ACCEPTABLE_AUDIO_MIME_TYPES:
+        return "music"
+
+    return None
+
+def getBasicMusicMetadata(item: dict, file: dict):
+    file_name = file.get("short_name") or file.get("name") or str(file.get("id"))
+    root_folder_name = item.get("name") or item.get("hash") or "music"
+
+    return {
+        "metadata_title": file_name,
+        "metadata_link": None,
+        "metadata_mediatype": "music",
+        "metadata_image": None,
+        "metadata_backdrop": None,
+        "metadata_years": None,
+        "metadata_season": None,
+        "metadata_episode": None,
+        "metadata_filename": file_name,
+        "metadata_rootfoldername": root_folder_name,
+        "metadata_foldername": None,
+    }
+
 def process_file(item, file, type):
     """Process a single file and return the processed data"""
-    if not file.get("mimetype").startswith("video/") or file.get("mimetype") not in ACCEPTABLE_MIME_TYPES:
-        logging.debug(f"Skipping file {file.get('short_name')} with mimetype {file.get('mimetype')}")
+    short_name = file.get("short_name") or file.get("name") or str(file.get("id"))
+    mimetype = file.get("mimetype")
+    media_type = getAcceptedMediaType(mimetype)
+
+    if media_type is None:
+        logging.debug(f"Skipping file {short_name} with mimetype {mimetype}")
         return None
     
     data = {
@@ -39,22 +86,30 @@ def process_file(item, file, type):
         "folder_name": item.get("name"),
         "DEBUG_name": item.get("name"),
         "DEBUG_hash": item.get("hash"),
-        "DEBUG_file_name": file.get("short_name"),
+        "DEBUG_file_name": short_name,
         "folder_hash": item.get("hash"),
         "file_id": file.get("id"),
-        "file_name": file.get("short_name"),
+        "file_name": short_name,
         "file_size": file.get("size"),
-        "file_mimetype": file.get("mimetype"),
+        "file_mimetype": mimetype,
         "path": file.get("name"),
         "download_link": f"https://api.torbox.app/v1/api/{type.value}/requestdl?token={TORBOX_API_KEY}&{IDType[type.value].value}={item.get('id')}&file_id={file.get('id')}&redirect=true",
-        "extension": os.path.splitext(file.get("short_name"))[-1],              
+        "extension": os.path.splitext(short_name)[-1],
     }
-    title_data = PTN.parse(file.get("short_name"))
+
+    if media_type == "music":
+        metadata = getBasicMusicMetadata(item, file)
+        data.update(metadata)
+        logging.debug(data)
+        insertData(data, type.value)
+        return data
+
+    title_data = PTN.parse(short_name)
 
     if item.get("name") == item.get("hash"):
-        item["name"] = title_data.get("title", file.get("short_name"))
+        item["name"] = title_data.get("title", short_name)
 
-    metadata, _, _ = searchMetadata(title_data.get("title", file.get("short_name")), title_data, file.get("short_name"), f"{item.get('name')} {file.get('short_name')}", item.get("hash"), item.get("name"))
+    metadata, _, _ = searchMetadata(title_data.get("title", short_name), title_data, short_name, f"{item.get('name')} {short_name}", item.get("hash"), item.get("name"))
     data.update(metadata)
     logging.debug(data)
     insertData(data, type.value)

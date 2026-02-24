@@ -1,4 +1,4 @@
-from library.app import RAW_MODE
+from library.app import RAW_MODE, ENABLE_AUDIO
 import os
 from library.filesystem import MOUNT_PATH
 import stat
@@ -47,20 +47,28 @@ class VirtualFileSystem:
                             current_path = f"{current_path}{part}/"
                             structure.setdefault(current_path, set())
             # Ensure consistent ordering
+            sorted_structure = {}
             for key in structure:
-                structure[key] = sorted([item for item in structure[key] if item is not None])
-            return structure
+                sorted_structure[key] = sorted([item for item in structure[key] if item is not None])
+            return sorted_structure
         else:
             structure = {
                 '/': ['movies', 'series'],
                 '/movies': set(),
                 '/series': set()
             }
+
+            if ENABLE_AUDIO:
+                structure['/'].append('music')
+                structure['/music'] = set()
         
         
         for f in self.files:
             media_type = f.get('metadata_mediatype')
             root_folder = f.get('metadata_rootfoldername')
+
+            if not root_folder:
+                continue
             
             if media_type == 'movie':
                 path = f'/movies/{root_folder}'
@@ -70,24 +78,42 @@ class VirtualFileSystem:
                     structure[path] = set()
                 structure[path].add(f.get('metadata_filename'))
                 
-            elif media_type == 'series':
+            elif media_type == 'music':
+                if '/music' not in structure:
+                    if 'music' not in structure['/']:
+                        structure['/'].append('music')
+                    structure['/music'] = set()
+
+                path = f'/music/{root_folder}'
+                structure['/music'].add(root_folder)
+
+                if path not in structure:
+                    structure[path] = set()
+                structure[path].add(f.get('metadata_filename'))
+
+            else:
+                metadata_foldername = f.get('metadata_foldername')
+                if not metadata_foldername:
+                    continue
+
                 path = f'/series/{root_folder}'
                 structure['/series'].add(root_folder)
                 
                 if path not in structure:
                     structure[path] = set()
-                structure[path].add(f.get('metadata_foldername'))
+                structure[path].add(metadata_foldername)
                 
-                season_path = f'{path}/{f.get("metadata_foldername")}'
+                season_path = f'{path}/{metadata_foldername}'
                 if season_path not in structure:
                     structure[season_path] = set()
                 structure[season_path].add(f.get('metadata_filename'))
         
         # consistent ordering
+        sorted_structure = {}
         for key in structure:
-            structure[key] = sorted([item for item in structure[key] if item is not None])
-            
-        return structure
+            sorted_structure[key] = sorted([item for item in structure[key] if item is not None])
+
+        return sorted_structure
 
     def _build_file_map(self):
         file_map = {}
@@ -98,11 +124,23 @@ class VirtualFileSystem:
                     path = f'/{original_path}'
                     file_map[path] = f
             else:
-                if f.get('metadata_mediatype') == 'movie':
-                    path = f'/movies/{f.get("metadata_rootfoldername")}/{f.get("metadata_filename")}'
+                media_type = f.get('metadata_mediatype')
+                root_folder = f.get("metadata_rootfoldername")
+
+                if not root_folder:
+                    continue
+
+                if media_type == 'movie':
+                    path = f'/movies/{root_folder}/{f.get("metadata_filename")}'
                     file_map[path] = f
-                else:  # series
-                    path = f'/series/{f.get("metadata_rootfoldername")}/{f.get("metadata_foldername")}/{f.get("metadata_filename")}'
+                elif media_type == 'music':
+                    path = f'/music/{root_folder}/{f.get("metadata_filename")}'
+                    file_map[path] = f
+                else:  # series and anime
+                    metadata_foldername = f.get("metadata_foldername")
+                    if not metadata_foldername:
+                        continue
+                    path = f'/series/{root_folder}/{metadata_foldername}/{f.get("metadata_filename")}'
                     file_map[path] = f
 
         return file_map
@@ -297,7 +335,7 @@ def runFuse():
     )
     server.parse(values=server, errex=1)
     try:
-        server.fuse_args.mountpoint = MOUNT_PATH
+        server.fuse_args.mountpoint = MOUNT_PATH # type: ignore[assignment]
     except OSError as e:
         logging.error(f"Error changing directory: {e}")
         sys.exit(1)

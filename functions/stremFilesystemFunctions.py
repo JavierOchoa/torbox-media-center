@@ -5,6 +5,15 @@ from library.app import RAW_MODE
 from library.filesystem import MOUNT_PATH
 from functions.appFunctions import getAllUserDownloads
 
+def getMountCategory(media_type: str | None):
+    if media_type == "movie":
+        return "movies"
+    if media_type == "music":
+        return "music"
+    if media_type == "series" or media_type == "anime":
+        return "series"
+    return None
+
 def generateFolderPath(data: dict) -> str | None:
     """
     Takes in a user download and returns the folder path for the download.
@@ -16,47 +25,39 @@ def generateFolderPath(data: dict) -> str | None:
             return os.path.dirname(original_path)
         return None
     else:
-      root_folder: str | None = data.get("metadata_rootfoldername", None)
-      metadata_foldername: str | None = data.get("metadata_foldername", None)
+        root_folder: str | None = data.get("metadata_rootfoldername", None)
+        metadata_foldername: str | None = data.get("metadata_foldername", None)
+        media_type = data.get("metadata_mediatype")
 
-      if not root_folder:
-          return None
+        if not root_folder:
+            return None
 
-      if data.get("metadata_mediatype") == "series":
-          if not metadata_foldername:
-              return None
-          folder_path = os.path.join(
-              root_folder,
-              metadata_foldername,
-          )
-      elif data.get("metadata_mediatype") == "movie":
-          folder_path = os.path.join(
-              root_folder
-          )
+        if media_type == "series" or media_type == "anime":
+            if not metadata_foldername:
+                return None
+            return os.path.join(
+                root_folder,
+                metadata_foldername,
+            )
 
-      elif data.get("metadata_mediatype") == "anime":
-          if not metadata_foldername:
-              return None
-          folder_path = os.path.join(
-              root_folder,
-              metadata_foldername,
-          )
-          
-      return folder_path
+        if media_type == "movie" or media_type == "music":
+            return os.path.join(root_folder)
+
+        return None
 
 def generateStremFile(file_path: str, url: str, type: str, file_name: str, download=None):
     if RAW_MODE:
+        if download is None:
+            return False
         original_path = download.get("path")
-        if original_path:
-            full_path = os.path.join(MOUNT_PATH, os.path.dirname(original_path))
+        if not original_path:
+            return False
+        full_path = os.path.join(MOUNT_PATH, os.path.dirname(original_path))
     else:
-        if type == "movie":
-            type = "movies"
-        elif type == "series":
-            type = "series"
-        elif type == "anime":
-            type = "series"
-        full_path = os.path.join(MOUNT_PATH, type, file_path)
+        mount_category = getMountCategory(type)
+        if mount_category is None:
+            return False
+        full_path = os.path.join(MOUNT_PATH, mount_category, file_path)
     try:
         os.makedirs(full_path, exist_ok=True)
         with open(f"{full_path}/{file_name}.strm", "w") as file:
@@ -86,14 +87,10 @@ def runStrm():
         if RAW_MODE:
             strm_path = os.path.join(MOUNT_PATH, file_path, f"{download.get('metadata_filename')}.strm")
         else:
-            type = download.get("metadata_mediatype")
-            if type == "movie":
-                type = "movies"
-            elif type == "series":
-                type = "series"
-            elif type == "anime":
-                type = "series"
-            strm_path = os.path.join(MOUNT_PATH, type, file_path, f"{download.get('metadata_filename')}.strm")
+            mount_category = getMountCategory(download.get("metadata_mediatype"))
+            if mount_category is None:
+                continue
+            strm_path = os.path.join(MOUNT_PATH, mount_category, file_path, f"{download.get('metadata_filename')}.strm")
         new_strm_files.add(strm_path)
         generateStremFile(file_path, download.get("download_link"), download.get("metadata_mediatype"), download.get("metadata_filename"), download)
 
@@ -121,6 +118,7 @@ def unmountStrm():
         MOUNT_PATH,
         os.path.join(MOUNT_PATH, "movies"),
         os.path.join(MOUNT_PATH, "series"),
+        os.path.join(MOUNT_PATH, "music"),
     ]
     for folder in folders:
         if os.path.exists(folder):

@@ -5,6 +5,7 @@ from enum import Enum
 load_dotenv()
 
 SCAN_METADATA = os.getenv("ENABLE_METADATA", "false").lower() == "true"
+ENABLE_AUDIO = os.getenv("ENABLE_AUDIO", "false").lower() == "true"
 RAW_MODE = os.getenv("RAW_MODE", "true").lower() == "true"
 
 class MountRefreshTimes(Enum):

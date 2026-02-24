@@ -1,4 +1,4 @@
-from library.app import RAW_MODE
+from library.app import RAW_MODE, ENABLE_AUDIO
 from functions.torboxFunctions import getUserDownloads, DownloadType
 from library.filesystem import MOUNT_METHOD, MOUNT_PATH
 from library.app import MOUNT_REFRESH_TIME
@@ -20,6 +20,8 @@ def initializeFolders():
             os.path.join(MOUNT_PATH, "movies"),
             os.path.join(MOUNT_PATH, "series"),
         ])
+        if ENABLE_AUDIO:
+            folders.append(os.path.join(MOUNT_PATH, "music"))
     for folder in folders:
         if os.path.exists(folder):
             logging.debug(f"Folder {folder} already exists. Deleting...")
@@ -102,6 +104,7 @@ def bootUp():
     logging.info("Mount path: %s", MOUNT_PATH)
     logging.info("TorBox API Key: %s", TORBOX_API_KEY)
     logging.info("Mount refresh time: %s %s", MOUNT_REFRESH_TIME, "hours")
+    logging.info("Audio support enabled: %s", ENABLE_AUDIO)
 
     # check version
     latest_version = getLatestVersion()

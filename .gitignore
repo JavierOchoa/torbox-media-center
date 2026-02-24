@@ -177,6 +177,7 @@ cython_debug/
 torbox
 movies
 series
+music
 test-*
 *.json
 .torbox-media-center.pid

@@ -30,9 +30,9 @@ The TorBox Media Center allows you to easily mount your TorBox media in a no-fri
 
 ### ✖️ What this application does not do
 
-- Folder customization *(limited to 'movies' and 'series')*
+- Folder customization *(limited to 'movies', 'series' and optional 'music')*
 - Provides WebDAV server *(use TorBox's WebDAV)*
-- Works with all types of files *(limited to video files)*
+- Works with all types of files *(limited to video files by default, with optional audio via `ENABLE_AUDIO`)*
 - Gets you banned from TorBox *(developed by TorBox team)*
 - 'Repairing' or 'renewing' your library *(this is against TorBox ToS)*
 - Adding new downloads
@@ -93,6 +93,8 @@ To run this project you will need to add the following environment variables to 
 `MOUNT_REFRESH_TIME` How fast you would like your mount to look for new files. Must be either `slowest` for every 24 hours, `very_slow` for every 12 hours, `slow` for every 6 hours, `normal` for every 3 hours, `fast` for every 2 hours or `ultra_fast` for every 1 hour. The default is `normal` and is optional. You can also trigger an immediate refresh at any time with `./refresh-content.sh` while the app is running.
 
 `ENABLE_METADATA` This option allows you to enable scanning the metadata of your files. If this is enabled, TorBox will __attempt__ to find the correct metadata for your files in your TorBox account. This isn't perfect, so use with caution. If this option is `false` it skips scanning and places all of your video files in the `movies` folder. If it is enabled, TorBox will scan, and attempt to place your files into either the `movies` or `series` folders. Please also keep in mind that you will be subject to rate limiting of our search endpoint when using the metadata option. Seeing 429 errors will be common. Most of the time it is best to keep this option disabled unless you video player absolutely requires it. Also keep in mind, this unlocks the `instant` option, which can allow you to refresh every 6 minutes.
+
+`ENABLE_AUDIO` This option enables basic audio/music file support in addition to video files. If this is `true`, audio files with supported mimetypes are mounted and placed under a `music` folder when `RAW_MODE` is disabled. The default is `false`.
 
 `RAW_MODE` This option determines whether you want the raw file structure (similar to what you would see with webdav). Setting this to `true` will present the files in the original structure. The default is `true`. If this is enabled, the `ENABLE_METADATA` option is disabled.
 
