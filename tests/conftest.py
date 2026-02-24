@@ -2,6 +2,8 @@ import os
 
 import pytest
 
+from functions.databaseFunctions import closeAllDatabases
+
 
 os.environ.setdefault("TORBOX_API_KEY", "test-key")
 os.environ.setdefault("ENABLE_METADATA", "true")
@@ -11,4 +13,7 @@ os.environ.setdefault("MOUNT_REFRESH_TIME", "normal")
 
 @pytest.fixture(autouse=True)
 def isolate_test_cwd(tmp_path, monkeypatch):
+    closeAllDatabases()
     monkeypatch.chdir(tmp_path)
+    yield
+    closeAllDatabases()

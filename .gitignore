@@ -180,4 +180,6 @@ series
 music
 test-*
 *.json
+!tests/fixtures/
+!tests/fixtures/*.json
 .torbox-media-center.pid

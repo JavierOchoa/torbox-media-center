@@ -168,7 +168,7 @@ def normalizeTitle(value: str | None):
 
 def containsSpecialKeyword(value: str | None):
     normalized = normalizeTitle(value)
-    return re.search(r"\b(special|specials|extra|extras|bonus|ova|oav)\b", normalized) is not None
+    return re.search(r"\b(special|specials|extra|extras|bonus|ova|oav|webisode|webisodes|webepisode|webepisodes)\b", normalized) is not None
 
 def parseSeasonEpisodeFromText(text: str | None):
     if not text:

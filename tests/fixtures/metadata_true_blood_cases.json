@@ -1,0 +1,124 @@
+{
+  "candidates": {
+    "true_blood_webisodes_first": [
+      {
+        "title": "True Blood: Webisodes",
+        "type": "series",
+        "releaseYears": "2010",
+        "link": "https://example.com/true-blood-webisodes",
+        "image": null,
+        "backdrop": null
+      },
+      {
+        "title": "True Blood",
+        "type": "series",
+        "releaseYears": "2008",
+        "link": "https://example.com/true-blood",
+        "image": null,
+        "backdrop": null
+      }
+    ],
+    "true_blood_series_and_movie": [
+      {
+        "title": "True Blood",
+        "type": "movie",
+        "releaseYears": "2008",
+        "link": "https://example.com/true-blood-movie",
+        "image": null,
+        "backdrop": null
+      },
+      {
+        "title": "True Blood",
+        "type": "series",
+        "releaseYears": "2008",
+        "link": "https://example.com/true-blood-series",
+        "image": null,
+        "backdrop": null
+      }
+    ]
+  },
+  "packs": {
+    "true_blood_s07_hash": {
+      "item": {
+        "id": 7001,
+        "name": "6044ce6a9393a39c3f71c1a44a84427c4580c729",
+        "hash": "6044ce6a9393a39c3f71c1a44a84427c4580c729",
+        "cached": true
+      },
+      "files": [
+        {
+          "id": 701,
+          "short_name": "True.Blood.S07E01.Jesus.Gonna.Be.Here.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "name": "6044ce6a9393a39c3f71c1a44a84427c4580c729/True.Blood.S07E01.Jesus.Gonna.Be.Here.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "mimetype": "video/x-matroska",
+          "size": 100
+        },
+        {
+          "id": 702,
+          "short_name": "True.Blood.S07E02.I.Found.You.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "name": "6044ce6a9393a39c3f71c1a44a84427c4580c729/True.Blood.S07E02.I.Found.You.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "mimetype": "video/x-matroska",
+          "size": 100
+        },
+        {
+          "id": 710,
+          "short_name": "True.Blood.S07E10.Thank.You.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "name": "6044ce6a9393a39c3f71c1a44a84427c4580c729/True.Blood.S07E10.Thank.You.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "mimetype": "video/x-matroska",
+          "size": 100
+        }
+      ],
+      "expected": {
+        "root_folder": "True Blood (2008)",
+        "season_folder": "Season 7",
+        "episodes": [1, 2, 10],
+        "filenames": [
+          "True Blood S07E01.mkv",
+          "True Blood S07E02.mkv",
+          "True Blood S07E10.mkv"
+        ]
+      }
+    },
+    "true_blood_s01_named": {
+      "item": {
+        "id": 8001,
+        "name": "True.Blood.S01.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]",
+        "hash": "tb-s01-pack-hash",
+        "cached": true
+      },
+      "files": [
+        {
+          "id": 801,
+          "short_name": "True.Blood.S01E01.Strange.Love.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "name": "True.Blood.S01.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]/True.Blood.S01E01.Strange.Love.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "mimetype": "video/x-matroska",
+          "size": 100
+        },
+        {
+          "id": 802,
+          "short_name": "True.Blood.S01E02.The.First.Taste.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "name": "True.Blood.S01.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]/True.Blood.S01E02.The.First.Taste.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "mimetype": "video/x-matroska",
+          "size": 100
+        },
+        {
+          "id": 812,
+          "short_name": "True.Blood.S01E12.Youll.Be.the.Death.of.Me.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "name": "True.Blood.S01.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP[rartv]/True.Blood.S01E12.Youll.Be.the.Death.of.Me.1080p.BluRay.REMUX.AVC.DTS-HD.MA.5.1-NOGRP.mkv",
+          "mimetype": "video/x-matroska",
+          "size": 100
+        }
+      ],
+      "expected": {
+        "root_folder": "True Blood (2008)",
+        "season_folder": "Season 1",
+        "episodes": [1, 2, 12],
+        "filenames": [
+          "True Blood S01E01.mkv",
+          "True Blood S01E02.mkv",
+          "True Blood S01E12.mkv"
+        ]
+      }
+    }
+  }
+}
