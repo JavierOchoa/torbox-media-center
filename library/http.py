@@ -92,6 +92,14 @@ def requestWrapper(client: httpx.Client, method: str, url: str, use_cache: bool 
             bad_response_codes = [429]
             if e.response.status_code in bad_response_codes:
                 wait_time = backoff_factor * (2 ** attempt)
+                retry_after_header = e.response.headers.get("Retry-After")
+                if retry_after_header is not None:
+                    try:
+                        retry_after_seconds = float(retry_after_header)
+                        if retry_after_seconds > wait_time:
+                            wait_time = retry_after_seconds
+                    except ValueError:
+                        pass
                 logging.warning(f"Received {e.response.status_code} for {url}. Retrying in {wait_time:.2f} seconds...")
                 time.sleep(wait_time)
             else:

@@ -5,12 +5,16 @@ import PTN
 from library.torbox import TORBOX_API_KEY
 from library.app import SCAN_METADATA, ENABLE_AUDIO
 from functions.mediaFunctions import constructSeriesTitle, cleanTitle, cleanYear
-from functions.databaseFunctions import insertData
+from functions.databaseFunctions import insertData, getDatabase, getDatabaseLock
 import os
 import logging
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing
+from tinydb import Query
+import hashlib
+import json
+import time
 
 class DownloadType(Enum):
     torrent = "torrents"
@@ -39,6 +43,12 @@ ACCEPTABLE_AUDIO_MIME_TYPES = [
     "audio/x-wav",
     "audio/aac",
 ]
+
+METADATA_CACHE_DB_NAME = "metadata_cache"
+METADATA_CACHE_SCHEMA_VERSION = 1
+METADATA_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30  # 30 days
+METADATA_FAILURE_CACHE_TTL_SECONDS = 60 * 60 * 6  # 6 hours
+METADATA_MAX_WORKERS = 2
 
 def getAcceptedMediaType(mimetype: str | None):
     if not mimetype:
@@ -70,11 +80,85 @@ def getBasicMusicMetadata(item: dict, file: dict):
         "metadata_foldername": None,
     }
 
+def getMetadataCacheKey(download_type: DownloadType, item: dict, file: dict):
+    cache_key_data = {
+        "schema_version": METADATA_CACHE_SCHEMA_VERSION,
+        "download_type": download_type.value,
+        "item_id": item.get("id"),
+        "item_hash": item.get("hash"),
+        "file_id": file.get("id"),
+        "file_name": file.get("short_name") or file.get("name"),
+        "file_path": file.get("name"),
+        "file_mimetype": file.get("mimetype"),
+    }
+
+    return hashlib.sha256(json.dumps(cache_key_data, sort_keys=True, default=str).encode()).hexdigest()
+
+def getCachedMetadata(cache_key: str):
+    db = getDatabase(METADATA_CACHE_DB_NAME)
+    db_lock = getDatabaseLock(METADATA_CACHE_DB_NAME)
+
+    if db is None or db_lock is None:
+        return None
+
+    query = Query()
+    with db_lock:
+        record = db.get(query.cache_key == cache_key)
+        if record is None:
+            return None
+
+        now = int(time.time())
+        if record.get("schema_version") != METADATA_CACHE_SCHEMA_VERSION or record.get("expires_at", 0) <= now:
+            db.remove(query.cache_key == cache_key)
+            return None
+
+        return record.get("metadata"), record.get("success", False), record.get("detail", "")
+
+def setCachedMetadata(cache_key: str, metadata: dict, success: bool, detail: str):
+    db = getDatabase(METADATA_CACHE_DB_NAME)
+    db_lock = getDatabaseLock(METADATA_CACHE_DB_NAME)
+
+    if db is None or db_lock is None:
+        return
+
+    now = int(time.time())
+    ttl_seconds = METADATA_CACHE_TTL_SECONDS if success else METADATA_FAILURE_CACHE_TTL_SECONDS
+
+    record = {
+        "cache_key": cache_key,
+        "schema_version": METADATA_CACHE_SCHEMA_VERSION,
+        "success": success,
+        "detail": detail,
+        "metadata": metadata,
+        "cached_at": now,
+        "expires_at": now + ttl_seconds,
+    }
+
+    query = Query()
+    with db_lock:
+        db.upsert(record, query.cache_key == cache_key)
+
+def pruneExpiredMetadataCache():
+    db = getDatabase(METADATA_CACHE_DB_NAME)
+    db_lock = getDatabaseLock(METADATA_CACHE_DB_NAME)
+
+    if db is None or db_lock is None:
+        return
+
+    now = int(time.time())
+    query = Query()
+
+    with db_lock:
+        removed = db.remove((query.schema_version != METADATA_CACHE_SCHEMA_VERSION) | (query.expires_at <= now))
+        if removed:
+            logging.info(f"Pruned {len(removed)} expired metadata cache entries.")
+
 def process_file(item, file, type):
     """Process a single file and return the processed data"""
     short_name = file.get("short_name") or file.get("name") or str(file.get("id"))
     mimetype = file.get("mimetype")
     media_type = getAcceptedMediaType(mimetype)
+    item_name = item.get("name")
 
     if media_type is None:
         logging.debug(f"Skipping file {short_name} with mimetype {mimetype}")
@@ -83,8 +167,8 @@ def process_file(item, file, type):
     data = {
         "item_id": item.get("id"),
         "type": type.value,
-        "folder_name": item.get("name"),
-        "DEBUG_name": item.get("name"),
+        "folder_name": item_name,
+        "DEBUG_name": item_name,
         "DEBUG_hash": item.get("hash"),
         "DEBUG_file_name": short_name,
         "folder_hash": item.get("hash"),
@@ -106,10 +190,20 @@ def process_file(item, file, type):
 
     title_data = PTN.parse(short_name)
 
-    if item.get("name") == item.get("hash"):
-        item["name"] = title_data.get("title", short_name)
+    if item_name == item.get("hash"):
+        item_name = title_data.get("title", short_name)
+        data["folder_name"] = item_name
 
-    metadata, _, _ = searchMetadata(title_data.get("title", short_name), title_data, short_name, f"{item.get('name')} {short_name}", item.get("hash"), item.get("name"))
+    cache_key = getMetadataCacheKey(type, item, file) if SCAN_METADATA else None
+    metadata, _, _ = searchMetadata(
+        title_data.get("title", short_name),
+        title_data,
+        short_name,
+        f"{item_name} {short_name}",
+        item.get("hash"),
+        item_name,
+        cache_key=cache_key,
+    )
     data.update(metadata)
     logging.debug(data)
     insertData(data, type.value)
@@ -151,11 +245,16 @@ def getUserDownloads(type: DownloadType):
         return None, True, f"No {type.value} found."
     
     logging.debug(f"Fetched {len(file_data)} {type.value} items from API.")
+
+    if SCAN_METADATA:
+        pruneExpiredMetadataCache()
     
     files = []
     
     # Get the number of CPU cores for parallel processing
     max_workers = int(multiprocessing.cpu_count() * 2 - 1)
+    if SCAN_METADATA:
+        max_workers = min(max_workers, METADATA_MAX_WORKERS)
     logging.info(f"Processing files with {max_workers} parallel threads")
     
     # Collect all files to process
@@ -187,7 +286,7 @@ def getUserDownloads(type: DownloadType):
             
     return files, True, f"{type.value.capitalize()} fetched successfully."
 
-def searchMetadata(query: str, title_data: dict, file_name: str, full_title: str, hash: str, item_name: str):
+def searchMetadata(query: str, title_data: dict, file_name: str, full_title: str, hash: str, item_name: str, cache_key: str | None = None):
     base_metadata = {
         "metadata_title": cleanTitle(query),
         "metadata_link": None,
@@ -198,54 +297,85 @@ def searchMetadata(query: str, title_data: dict, file_name: str, full_title: str
         "metadata_season": None,
         "metadata_episode": None,
         "metadata_filename": file_name,
-        "metadata_rootfoldername": title_data.get("item_name", None),
+        "metadata_rootfoldername": cleanTitle(item_name) if item_name else title_data.get("item_name", None),
+        "metadata_foldername": None,
     }
+
+    def cacheAndReturn(metadata: dict, success: bool, detail: str):
+        if cache_key is not None:
+            setCachedMetadata(cache_key, metadata, success, detail)
+        return metadata, success, detail
+
     if not SCAN_METADATA:
-        base_metadata["metadata_rootfoldername"] = item_name
         return base_metadata, False, "Metadata scanning is disabled."
+
+    if cache_key is not None:
+        cached_result = getCachedMetadata(cache_key)
+        if cached_result is not None:
+            cached_metadata, cached_success, cached_detail = cached_result
+            logging.debug(f"Metadata cache hit for key {cache_key}")
+            return cached_metadata, cached_success, f"Metadata cache hit. {cached_detail}"
+
     extension = os.path.splitext(file_name)[-1]
     try:
         response = requestWrapper(search_api_http_client, "GET", f"/meta/search/{full_title}", params={"type": "file"})
     except Exception as e:
         logging.error(f"Error searching metadata: {e}")
-        return base_metadata, False, f"Error searching metadata: {e}. Searching for {query}, item hash: {hash}"
+        return cacheAndReturn(base_metadata, False, f"Error searching metadata: {e}. Searching for {query}, item hash: {hash}")
     if response.status_code != 200:
         logging.error(f"Error searching metadata: {response.status_code}. {response.text}")
-        return base_metadata, False, f"Error searching metadata. {response.status_code}. Searching for {query}, item hash: {hash}"
+        return cacheAndReturn(base_metadata, False, f"Error searching metadata. {response.status_code}. Searching for {query}, item hash: {hash}")
     try:
-        data = response.json().get("data", [])[0]
+        metadata_results = response.json().get("data", [])
+        if not metadata_results:
+            return cacheAndReturn(base_metadata, False, f"No metadata found. Searching for {query}, item hash: {hash}")
+
+        data = metadata_results[0]
 
         title = cleanTitle(data.get("title"))
         base_metadata["metadata_title"] = title
         base_metadata["metadata_years"] = cleanYear(title_data.get("year", None) or data.get("releaseYears", None))
 
         if data.get("type") == "anime" or data.get("type") == "series":
-            series_season_episode = constructSeriesTitle(season=title_data.get("season", None), episode=title_data.get("episode", None))
-            file_name = f"{title} {series_season_episode}{extension}"
-            base_metadata["metadata_foldername"] = constructSeriesTitle(season=title_data.get("season", 1), folder=True)
-            base_metadata["metadata_season"] = title_data.get("season", 1)
-            base_metadata["metadata_episode"] = title_data.get("episode")
+            parsed_season = title_data.get("season", None)
+            parsed_episode = title_data.get("episode", None)
+            normalized_season = parsed_season if parsed_season is not None else 1
+
+            series_season_episode = constructSeriesTitle(season=parsed_season, episode=parsed_episode)
+            if series_season_episode is not None:
+                file_name = f"{title} {series_season_episode}{extension}"
+            else:
+                file_name = f"{title}{extension}"
+            base_metadata["metadata_foldername"] = constructSeriesTitle(season=normalized_season, folder=True)
+            base_metadata["metadata_season"] = normalized_season
+            base_metadata["metadata_episode"] = parsed_episode
         elif data.get("type") == "movie":
-            file_name = f"{title} ({base_metadata['metadata_years']}){extension}"
+            if base_metadata["metadata_years"] is not None:
+                file_name = f"{title} ({base_metadata['metadata_years']}){extension}"
+            else:
+                file_name = f"{title}{extension}"
         else:
-            return base_metadata, False, f"No metadata found. Searching for {query}, item hash: {hash}"
+            return cacheAndReturn(base_metadata, False, f"No metadata found. Searching for {query}, item hash: {hash}")
             
         base_metadata["metadata_filename"] = file_name
         base_metadata["metadata_mediatype"] = data.get("type")
         base_metadata["metadata_link"] = data.get("link")
         base_metadata["metadata_image"] = data.get("image")
         base_metadata["metadata_backdrop"] = data.get("backdrop")
-        base_metadata["metadata_rootfoldername"] = f"{title} ({base_metadata['metadata_years']})"
+        if base_metadata["metadata_years"] is not None:
+            base_metadata["metadata_rootfoldername"] = f"{title} ({base_metadata['metadata_years']})"
+        else:
+            base_metadata["metadata_rootfoldername"] = title
 
-        return base_metadata, True, f"Metadata found. Searching for {query}, item hash: {hash}"
+        return cacheAndReturn(base_metadata, True, f"Metadata found. Searching for {query}, item hash: {hash}")
     except IndexError:
-        return base_metadata, False, f"No metadata found. Searching for {query}, item hash: {hash}"
+        return cacheAndReturn(base_metadata, False, f"No metadata found. Searching for {query}, item hash: {hash}")
     except httpx.TimeoutException:
-        return base_metadata, False, f"Timeout searching metadata. Searching for {query}, item hash: {hash}"
+        return cacheAndReturn(base_metadata, False, f"Timeout searching metadata. Searching for {query}, item hash: {hash}")
     except Exception as e:
         logging.error(f"Error searching metadata: {e}")
         logging.error(f"Error searching metadata: {traceback.format_exc()}")
-        return base_metadata, False, f"Error searching metadata: {e}. Searching for {query}, item hash: {hash}"
+        return cacheAndReturn(base_metadata, False, f"Error searching metadata: {e}. Searching for {query}, item hash: {hash}")
 
 def getDownloadLink(url: str):
     response = requestWrapper(general_http_client, "GET", url)
