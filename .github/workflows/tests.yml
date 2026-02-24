@@ -1,0 +1,21 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      TORBOX_API_KEY: test-key
+      ENABLE_METADATA: true
+      RAW_MODE: false
+      MOUNT_REFRESH_TIME: normal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Run pytest
+        run: pytest -q
